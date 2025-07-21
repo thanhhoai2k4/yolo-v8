@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from yolov8.losses.task_aligned_assigner import Label_Assignment
 
 np.random.seed(42)
 
@@ -81,34 +82,11 @@ def dist2bbox(distance, anchor_points):
 
 
 
-def losses(num_classes=80):
+
+
+def losses(num_classes=1):
     def compute_loss(y_true, y_pred):
 
-        bboxes_logits = [y_pred[i] for i in tf.range(
-            start=tf.constant(0, dtype=tf.int32), limit=6, delta=2
-        )] # list : 3 = [(batch,W,H,64)]
-        class_logits = [y_pred[i] for i in tf.range(
-            start=tf.constant(1, dtype=tf.int32), limit=6, delta=2
-        )] # list : 3 = [(batch,W,H,num_classes)]
 
-        # ma hoa 64 phan tu ve 4 phan tu
-        bboxes_logits = [decode_regression_to_boxes(bboxes_logits[i]) for i in tf.range(
-            start=tf.constant(0, dtype=tf.int32), limit=3, delta=1
-        )] # list : 3 = [(batch,W*H,4)]
-
-        # anchors : (H*W, 2)       --          strides (H*W, )
-        anchors, strides = get_anchors([640,640])
-        list_anchors = anchors[:6400,:],  anchors[6400:8000,:], anchors[8000:,:]
-        pred_bboxes = [dist2bbox(bboxes_logits[i], list_anchors[i]) for i in tf.range(3)]
-
-
-        # lam phang
-        pred_bboxes = tf.keras.ops.concatenate(pred_bboxes, axis=1)
-        pred_scores = tf.keras.ops.concatenate([tf.keras.layers.Reshape((-1, num_classes))(class_logits[i]) for i in tf.range(3)], axis=1) # (batch, total_anchors, num_classes)
-
-        pred_bboxes = pred_bboxes * strides[:, None]
-
-
-        return 0
 
     return compute_loss
