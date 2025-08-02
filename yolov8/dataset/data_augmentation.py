@@ -94,6 +94,3 @@ def mixup(image_1, labels_1, image_2, labels_2, alpha=0.4):
     combined_labels = tf.concat([labels_1, labels_2], axis=0)
 
     return mixed_image, combined_labels
-
-
-

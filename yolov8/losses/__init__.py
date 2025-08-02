@@ -1,1 +1,1 @@
-from yolov8.losses.losses import losses
+from .losses import losses

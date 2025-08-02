@@ -1,5 +1,7 @@
 import tensorflow as tf
+import numpy as np
 from yolov8.dataset.data_augmentation import mosaic, mixup
+
 
 def read_img(path):
     """
@@ -15,7 +17,6 @@ def read_img(path):
     images = tf.io.read_file(path) # read
     images = tf.image.decode_png(images, channels=3) # convert 3 channels
     images = tf.image.convert_image_dtype(images, tf.float32) # any to float
-    images /= 255.0 # 0-255 =) 0-1
 
     return images
 
@@ -56,24 +57,88 @@ def getlistfile(path, training : str="train" ):
     return images_dataset, texts_dataset
 
 def dataset(path, training : str="train" ):
-
+    """
+    Generator function để yield dữ liệu (image, label, mask)
+    """
     images_dataset, texts_dataset = getlistfile(path, training)
 
     image_list = []
     labels_list = []
     for i in tf.range(len(images_dataset)):
-
         image = read_img(images_dataset[i])
         label = read_label(texts_dataset[i])
+        
+        # Tạo mask với shape đúng (N, 1)
+        num_boxes = tf.shape(label)[0]
+        mask = tf.ones((num_boxes, 1), dtype=tf.int16)
 
         if len(image_list) != 4 and len(labels_list) != 4:
             image_list.append(image)
             labels_list.append(label)
-
-        else: # thuc hien argument co mosaic
+        else:
+            # Thực hiện mosaic và mixup
             images, labels = mosaic(image_list, labels_list, output_size=(640,640))
             mixed_image, combined_labels = mixup(images, labels, image, label, 3.0)
-            yield mixed_image, combined_labels
-
+            
+            # Tạo mask cho combined_labels
+            combined_num_boxes = tf.shape(combined_labels)[0]
+            combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
+            
+            yield mixed_image, combined_labels, combined_mask
             image_list = []
             labels_list = []
+
+def get_prepared_dataset(
+    data_dir="dataset",
+    training="train",
+    batch_size=2,
+    n_max_bboxes=10,
+    input_shape=(640, 640, 3),
+    shuffle_buffer=100,
+    drop_remainder=True
+):
+    """
+    Hàm đóng gói toàn bộ pipeline load và chuẩn bị dữ liệu
+    
+    Parameters:
+        data_dir: Đường dẫn đến thư mục dataset
+        training: "train" hoặc "test"
+        batch_size: Kích thước batch
+        n_max_bboxes: Số lượng bbox tối đa sau khi padding
+        input_shape: Kích thước ảnh đầu vào
+        shuffle_buffer: Buffer size cho shuffle
+        drop_remainder: Có drop batch cuối không đủ size không
+    
+    Returns:
+        tf.data.Dataset đã được chuẩn bị sẵn sàng cho training
+    """
+    
+    def generator():
+        return dataset(data_dir, training)
+    
+    # Tạo dataset từ generator
+    ds = tf.data.Dataset.from_generator(
+        generator,
+        output_signature=(
+            tf.TensorSpec(shape=input_shape, dtype=tf.float32), 
+            tf.TensorSpec(shape=(None, 5), dtype=tf.float32),
+            tf.TensorSpec(shape=(None, 1), dtype=tf.int16),
+        )
+    )
+    
+    # Áp dụng các transformation
+    ds = ds.shuffle(shuffle_buffer)
+    ds = ds.padded_batch(
+        batch_size=batch_size,
+        padded_shapes=(input_shape, (n_max_bboxes, 5), (n_max_bboxes, 1)),
+        padding_values=(
+            tf.constant(0.0, dtype=tf.float32),
+            tf.constant(-1.0, dtype=tf.float32),
+            tf.constant(0, dtype=tf.int16)
+        ),
+        drop_remainder=drop_remainder
+    )
+    ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+    
+    return ds
+    

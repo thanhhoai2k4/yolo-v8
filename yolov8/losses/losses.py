@@ -85,8 +85,116 @@ def dist2bbox(distance, anchor_points):
 
 
 def losses(num_classes=1):
-    def compute_loss(y_true, y_pred):
+    def compute_loss(images: tf.Tensor, labels: tf.Tensor, gt_masks: tf.Tensor, y_pred):
+        """
+            Tinh toan loss cho model yolo v8.
+
+            Args:
+                images: Tensor đầu vào thử nghiệm. shape (B, H, W, 3)
+                labels: Tensor đại điện cho ids, x,y,w,h. shape (B, N_MAX_BBOXES, 5)
+                gt_masks: Tensor đại diện cho nó có phải là dữ liệu thật sự hay ko hay chỉ là padding. shape (B, N_MAX_BBOXES, 1)
+                y_pred: danh sách 6 phần tử Tensor. lần lước là đầu ra box và class theo diện tích giảm dần.
+            Returns:
+                Loss.
+        """
+
+        # giai ma dau ra cua du doan
+        box_pred_p3, cls_pred_p3, box_pred_p4, cls_pred_p4, box_pred_p5, cls_pred_p5 = y_pred
+        
+        # gop tat ca box pred
+        all_box_pred = [box_pred_p3, box_pred_p4, box_pred_p5]
+        # gop tat ca class pred
+        all_cls_preds = [cls_pred_p3, cls_pred_p4, cls_pred_p5]
+
+        # ----------------------------------------------------------------------------------------
+        reshape_box_preds = []
+        for box_pred in all_box_pred:
+            batch_size = tf.shape(box_pred)[0] # batch_size
+            # reshape: (B, H, W,  4*reg_max) =) (B, H*W, 4*reg_max)
+            reshaped = tf.reshape(box_pred, shape=(batch_size, -1, box_pred.shape[-1]))
+            reshape_box_preds.append(reshaped)
+        all_box_preds_concat = tf.concat(reshape_box_preds, axis=1) # shape (B, 8400, 64)
+
+        # --------------------------------------------------------------------------------
+        reshape_cls_preds = []
+        for cls_pred in all_cls_preds:
+            batch_size = tf.shape(cls_pred)[0]
+            # Reshape: (batch, H, W, num_classes) -> (batch, H*W, num_classes)
+            reshaped = tf.reshape(cls_pred, [batch_size, -1, cls_pred.shape[-1]])
+            reshape_cls_preds.append(reshaped)
+        all_cls_preds_concat = tf.concat(reshape_cls_preds, axis=1) # shape: (B, 8400, 1) chua duoc ma hoa
+        all_cls_preds_concat = tf.nn.sigmoid(all_cls_preds_concat) # shape: (B, 8400, 1) da duoc ma hoa
+        #--------------------------------------------------------------------------------------
+
+        # giai ma boxes su that
+        boxes_True = labels[..., 1:] * 640
+        boxes_True = converbox(boxes_True, True) # chuyen doi xywh sang xyxy
+        class_id_true = labels[..., 0] 
+
+
+
+        # mỗi dòng là 4 phần tử đại diện cho khoảng cách tình từ tâm tương ứng đến 4 tọa độ (top - left) và (right - bottom)
+        #                   ****************-----------------
+        #                   *                               |
+        #                   *              . (x_c, y_c)     *      x_c : x anchros
+        #                   |                               *      y_c : y anchors
+        #                   ---------------******************
+        # khoang cach tu tâm tương ứng đến 4 tọa độ (top - left) và (right - bottom)
+        decoded_boxes = decode_regression_to_boxes(all_box_preds_concat) # day la box xyxy da duoc ma hoa shape (B, num_acnhors, 4)
+        
+        # all_anchors: shape(8400,2)  all_strides : shape(8400,)
+        all_anchors, all_strides = get_anchors(image_shape=images.shape[1:3])
+
+        # chuyển anchors từ tọa độ tương đối sang tọa độ tuyệt đối.
+        anchor_point = all_anchors * all_strides[:,None] # shape: (8400,2) notes: 8400 còn được gọi là n_anchors.
+
+        pred_bboxes_xyxy = dist2bbox(decoded_boxes, anchor_point) # Tọa độ thực của pred_box shape: (B, 8400, 4)
+
+        target_bboxes, target_scores, fg_mask = Label_Assignment(
+             pred_bboxes_xyxy,
+              all_cls_preds_concat,
+              anchor_point,
+              class_id_true,
+              boxes_True,
+              gt_masks
+        )
+
 
 
 
     return compute_loss
+
+
+
+
+
+def converbox(boxes,xyxy=True):
+    """
+        chuyen doi dinh dang cua hop gioi han.
+
+        Args:
+            - boxes: co shape -1,4
+            - xyxy: xet xem can chuyen doi dinh dang gi
+
+    """
+    if xyxy:
+        x,y,w,h = tf.split(boxes, 4, axis=-1)
+
+        x1 = x - w/2
+        y1 = y - h/2
+        x2 = x + w/2
+        y2 = y + h/2
+
+        my_result = tf.concat([x1,y1, x2, y2], axis=-1)
+    else:
+        x1, y1, x2, y2 = tf.split(boxes, 4, axis = -1)
+
+        x = (x1 + x2)/2
+        y = (y1 + y2)/2
+        w = x2 - x1
+        h = y2 - y1
+
+        my_result = tf.concat([x,y,w,h], axis=-1)
+    
+
+    return my_result
