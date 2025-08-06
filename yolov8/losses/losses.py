@@ -1,10 +1,11 @@
 import tensorflow as tf
 import numpy as np
-from yolov8.losses.task_aligned_assigner import Label_Assignment
+from yolov8.losses.task_aligned_assigner import task_aligned_assigner
 
 np.random.seed(42)
 
 BOX_REGRESSION_CHANNELS = 64
+
 def decode_regression_to_boxes(preds):
     """
         giai ma ket qua cua model cho box
@@ -85,6 +86,7 @@ def dist2bbox(distance, anchor_points):
 
 
 def losses(num_classes=1):
+    tal = task_aligned_assigner(num_classes=1)
     def compute_loss(images: tf.Tensor, labels: tf.Tensor, gt_masks: tf.Tensor, y_pred):
         """
             Tinh toan loss cho model yolo v8.
@@ -150,16 +152,17 @@ def losses(num_classes=1):
 
         pred_bboxes_xyxy = dist2bbox(decoded_boxes, anchor_point) # Tọa độ thực của pred_box shape: (B, 8400, 4)
 
-        target_bboxes, target_scores, fg_mask = Label_Assignment(
-             pred_bboxes_xyxy,
-              all_cls_preds_concat,
-              anchor_point,
-              class_id_true,
-              boxes_True,
-              gt_masks
-        )
+        bbox_labels, class_labels, gt_box_matches_per_anchor = tal(scores = all_cls_preds_concat,
+                                                                   decode_bboxes = pred_bboxes_xyxy,
+                                                                   anchors = tf.keras.ops.tile(
+                                                                       tf.keras.ops.expand_dims(anchor_point, axis=0),
+                                                                       [labels.shape[1], 1, 1]),
+                                                                   gt_labels = class_id_true,
+                                                                   gt_bboxes = boxes_True,
+                                                                   gt_mask = gt_masks
+                                                                   )
 
-
+        x = 0
 
 
     return compute_loss
@@ -198,4 +201,3 @@ def converbox(boxes,xyxy=True):
     
 
     return my_result
-# xxxxxxxxx
