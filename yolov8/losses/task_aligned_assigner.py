@@ -194,7 +194,7 @@ class task_aligned_assigner(tf.keras.layers.Layer):
             tf.keras.ops.stop_gradient(bbox_labels),
             tf.keras.ops.stop_gradient(class_labels),
             tf.keras.ops.stop_gradient(
-                tf.keras.ops.cast(gt_box_matches_per_anchor > -1, "float32")
+                tf.keras.ops.cast(gt_box_matches_per_anchor, "float32")
             ),
         )
 

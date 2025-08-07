@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from yolov8.losses.task_aligned_assigner import task_aligned_assigner
-
+import math
 np.random.seed(42)
 
 BOX_REGRESSION_CHANNELS = 64
@@ -86,7 +86,8 @@ def dist2bbox(distance, anchor_points):
 
 
 def losses(num_classes=1):
-    tal = task_aligned_assigner(num_classes=1)
+    tal = task_aligned_assigner(num_classes=num_classes)
+    bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, reduction=tf.keras.losses.Reduction.NONE)
     def compute_loss(images: tf.Tensor, labels: tf.Tensor, gt_masks: tf.Tensor, y_pred):
         """
             Tinh toan loss cho model yolo v8.
@@ -162,13 +163,79 @@ def losses(num_classes=1):
                                                                    gt_mask = gt_masks
                                                                    )
 
-        x = 0
+        fg_mask = (gt_box_matches_per_anchor > 0)
+
+        loss_cls = bce(
+            y_true=tf.boolean_mask(class_labels, fg_mask),
+            y_pred=tf.boolean_mask(all_cls_preds_concat, fg_mask),
+        )
+
+
+        boxes_loss = 1 - compute_ciou(
+            boxes1 = tf.boolean_mask(pred_bboxes_xyxy, fg_mask),
+            boxes2 = tf.boolean_mask(bbox_labels, fg_mask)
+        )
+
+
+        total_loss = tf.reduce_mean(boxes_loss) + tf.reduce_mean(loss_cls)
+        return total_loss
+
 
 
     return compute_loss
 
 
+def compute_ciou(boxes1, boxes2):
 
+    x_min1, y_min1, x_max1, y_max1 = tf.keras.ops.split(boxes1[..., :4], 4, axis=-1)
+    x_min2, y_min2, x_max2, y_max2 = tf.keras.ops.split(boxes2[..., :4], 4, axis=-1)
+
+    width_1 = x_max1 - x_min1
+    height_1 = y_max1 - y_min1 + 1e-5
+    width_2 = x_max2 - x_min2
+    height_2 = y_max2 - y_min2 + 1e-5
+
+    intersection_area = tf.keras.ops.maximum(
+        tf.keras.ops.minimum(x_max1, x_max2) - tf.keras.ops.maximum(x_min1, x_min2), 0
+    ) * tf.keras.ops.maximum(
+        tf.keras.ops.minimum(y_max1, y_max2) - tf.keras.ops.maximum(y_min1, y_min2), 0
+    )
+    union_area = (
+        width_1 * height_1
+        + width_2 * height_2
+        - intersection_area
+        + 1e-5
+    )
+    iou = tf.keras.ops.squeeze(
+        tf.keras.ops.divide(intersection_area, union_area + 1e-5),
+        axis=-1,
+    )
+
+    convex_width = tf.keras.ops.maximum(x_max1, x_max2) - tf.keras.ops.minimum(x_min1, x_min2)
+    convex_height = tf.keras.ops.maximum(y_max1, y_max2) - tf.keras.ops.minimum(y_min1, y_min2)
+    convex_diagonal_squared = tf.keras.ops.squeeze(
+        convex_width**2 + convex_height**2 + tf.keras.backend.epsilon(),
+        axis=-1,
+    )
+    centers_distance_squared = tf.keras.ops.squeeze(
+        ((x_min1 + x_max1) / 2 - (x_min2 + x_max2) / 2) ** 2
+        + ((y_min1 + y_max1) / 2 - (y_min2 + y_max2) / 2) ** 2,
+        axis=-1,
+    )
+
+    v = tf.keras.ops.squeeze(
+        tf.keras.ops.power(
+            (4 / math.pi**2)
+            * (tf.keras.ops.arctan(width_2 / height_2) - tf.keras.ops.arctan(width_1 / height_1)),
+            2,
+        ),
+        axis=-1,
+    )
+    alpha = v / (v - iou + (1 + tf.keras.backend.epsilon()))
+
+    return iou - (
+        centers_distance_squared / convex_diagonal_squared + v * alpha
+    )
 
 
 def converbox(boxes,xyxy=True):

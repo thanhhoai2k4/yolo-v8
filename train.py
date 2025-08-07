@@ -7,7 +7,7 @@ import tensorflow as tf
 
 # Parameter
 # -----------------------------------
-batch_size = 1
+batch_size = 2
 num_classes = 1
 epochs = 10
 input_shape = [640,640,3]
