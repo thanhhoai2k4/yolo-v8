@@ -21,10 +21,10 @@ loss_fn = losses(num_classes=NUM_CLASSES)
 optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE) # cap nhat trong so
 model =create_yolo_v8_model(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES)
 
-# huan luyen
-# ---------------------------------------------------------------------------------------
-# ---------------------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------------------
+# huan luyen
 
 @tf.function
 def train_step(images, labels, gt_masks):
@@ -58,4 +58,5 @@ def train(data_train, loss_fn, optimizer, model):
 # -----------------------------------------------------------------------------------------
 
 
+# Training model
 train(data_train, loss_fn, optimizer, model)
