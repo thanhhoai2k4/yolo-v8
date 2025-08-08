@@ -24,30 +24,38 @@ model =create_yolo_v8_model(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES)
 # huan luyen
 # ---------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------
-for epoch in tf.range(EPOCHS):
-    print(f"\n--- Bắt đầu Epoch {epoch + 1}/{EPOCHS} ---")
-    start_time_epoch = time.time()
-    total_loss, num_batches = 0, 0
-
-    pbar = tqdm(enumerate(data_train), total=Total_Train // BATCH_SIZE, desc=f"Epoch {epoch + 1}/{EPOCHS}")
-    for step, (images, labels, gt_masks) in pbar:
-        with tf.GradientTape() as tape:
-
-            predictions = model(images, training=True)
-            loss_value = loss_fn(images, labels, gt_masks, predictions)
-
-        # tinh gradient vao nhung bien kha bien
-        grads = tape.gradient(loss_value, model.trainable_weights)
-        # update weight
-        optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
 
-        total_loss += loss_value.numpy()
-        num_batches += 1
+@tf.function
+def train_step(images, labels, gt_masks):
+    with tf.GradientTape() as tape:
+        predictions = model(images, training=True)
+        loss_value = loss_fn(images, labels, gt_masks, predictions)
+    grads = tape.gradient(loss_value, model.trainable_weights)
+    optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
-        pbar.set_postfix({"loss": total_loss / num_batches})
+    # đảm bảo trả scalar float32
+    return tf.reduce_mean(loss_value)
 
 
-    print("loss: ",total_loss)
+def train(data_train, loss_fn, optimizer, model):
+    for epoch in tf.range(EPOCHS):
+        print(f"\n--- Bắt đầu Epoch {epoch + 1}/{EPOCHS} ---")
+        start_time_epoch = time.time()
+        total_loss, num_batches = 0, 0
+
+        pbar = tqdm(enumerate(data_train), total=Total_Train // BATCH_SIZE, desc=f"Epoch {epoch + 1}/{EPOCHS}")
+        for step, (images, labels, gt_masks) in pbar:
+
+            loss_value = train_step(images, labels, gt_masks)
+            total_loss += float(loss_value.numpy())
+            num_batches += 1
+
+            avg = total_loss / num_batches if num_batches > 0 else 0.0
+            pbar.set_postfix({"loss": f"{avg:.6f}"})
+
 
 # -----------------------------------------------------------------------------------------
+
+
+train(data_train, loss_fn, optimizer, model)
