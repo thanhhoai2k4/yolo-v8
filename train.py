@@ -38,7 +38,7 @@ for epoch in tf.range(EPOCHS):
 
         # tinh gradient vao nhung bien kha bien
         grads = tape.gradient(loss_value, model.trainable_weights)
-        #cap nhat trong so
+        # update weight
         optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
 
