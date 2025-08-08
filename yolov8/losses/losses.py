@@ -85,7 +85,7 @@ def dist2bbox(distance, anchor_points):
 
 
 
-def losses(num_classes=1):
+def losses(num_classes=1, weight = [5.0, 1.0, 0.5]):
     tal = task_aligned_assigner(num_classes=num_classes)
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, reduction=tf.keras.losses.Reduction.NONE)
     def compute_loss(images: tf.Tensor, labels: tf.Tensor, gt_masks: tf.Tensor, y_pred):
@@ -157,7 +157,7 @@ def losses(num_classes=1):
                                                                    decode_bboxes = pred_bboxes_xyxy,
                                                                    anchors = tf.keras.ops.tile(
                                                                        tf.keras.ops.expand_dims(anchor_point, axis=0),
-                                                                       [labels.shape[1], 1, 1]),
+                                                                       [labels.shape[0], 1, 1]),
                                                                    gt_labels = class_id_true,
                                                                    gt_bboxes = boxes_True,
                                                                    gt_mask = gt_masks
@@ -165,19 +165,31 @@ def losses(num_classes=1):
 
         fg_mask = (gt_box_matches_per_anchor > 0)
 
-        loss_cls = bce(
-            y_true=tf.boolean_mask(class_labels, fg_mask),
-            y_pred=tf.boolean_mask(all_cls_preds_concat, fg_mask),
+        loss_cls_positive = tf.keras.ops.cond(
+            tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
+            lambda: bce(
+                tf.boolean_mask(class_labels, fg_mask),
+                tf.boolean_mask(all_cls_preds_concat, fg_mask)
+            ),
+            lambda: tf.constant(0* class_labels, dtype=tf.float32)
         )
 
 
-        boxes_loss = 1 - compute_ciou(
-            boxes1 = tf.boolean_mask(pred_bboxes_xyxy, fg_mask),
-            boxes2 = tf.boolean_mask(bbox_labels, fg_mask)
+        boxes_loss = tf.keras.ops.cond(
+            tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
+            lambda: 1 - compute_ciou(
+                tf.boolean_mask(pred_bboxes_xyxy, fg_mask),
+                tf.boolean_mask(bbox_labels, fg_mask)
+            ),
+            lambda: tf.constant(0.0*pred_bboxes_xyxy, dtype=tf.float32)
         )
 
+        loss_cls_negative = bce(
+            tf.boolean_mask(class_labels, ~fg_mask),
+            tf.boolean_mask(all_cls_preds_concat, ~fg_mask)
+        )
 
-        total_loss = tf.reduce_mean(boxes_loss) + tf.reduce_mean(loss_cls)
+        total_loss = weight[0]*tf.keras.ops.sum(loss_cls_positive) + weight[0]*tf.keras.ops.sum(boxes_loss) + weight[0]*tf.keras.ops.sum(loss_cls_negative)
         return total_loss
 
 
