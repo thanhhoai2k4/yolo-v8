@@ -1,8 +1,7 @@
 import tensorflow as tf
-import numpy as np
 from yolov8.losses.task_aligned_assigner import task_aligned_assigner
 import math
-np.random.seed(42)
+
 
 BOX_REGRESSION_CHANNELS = 64
 
