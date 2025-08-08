@@ -110,7 +110,7 @@ class task_aligned_assigner(tf.keras.layers.Layer):
         alignment_metrics = tf.keras.ops.power(bbox_scores, self.alpha) * tf.keras.ops.power(
             overlaps, self.beta
         )
-        alignment_metrics = tf.keras.ops.where(gt_mask, alignment_metrics, 0) #
+        alignment_metrics = tf.keras.ops.where(gt_mask[:,:,None], alignment_metrics, 0) #
 
 
         # anchors inside cell
@@ -194,7 +194,7 @@ class task_aligned_assigner(tf.keras.layers.Layer):
             tf.keras.ops.stop_gradient(bbox_labels),
             tf.keras.ops.stop_gradient(class_labels),
             tf.keras.ops.stop_gradient(
-                tf.keras.ops.cast(gt_box_matches_per_anchor, "float32")
+                tf.keras.ops.cast(gt_box_matches_per_anchor_mask, tf.int32)
             ),
         )
 

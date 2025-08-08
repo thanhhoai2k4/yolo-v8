@@ -52,4 +52,7 @@ for epoch in tf.range(epochs):
         total_loss += loss_value
         num_batches += 1
 
+
+    print("loss: ",total_loss)
+
 # -----------------------------------------------------------------------------------------
