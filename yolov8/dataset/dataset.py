@@ -1,7 +1,5 @@
 import tensorflow as tf
-import numpy as np
 from yolov8.dataset.data_augmentation import mosaic, mixup
-
 
 def read_img(path):
     """
@@ -83,7 +81,9 @@ def dataset(path, training : str="train" ):
             # Tạo mask cho combined_labels
             combined_num_boxes = tf.shape(combined_labels)[0]
             combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
-            
+            combined_mask = tf.cast(combined_mask, dtype=tf.bool)
+            combined_mask = tf.reshape(combined_mask, [combined_num_boxes,])
+
             yield mixed_image, combined_labels, combined_mask
             image_list = []
             labels_list = []
@@ -122,7 +122,7 @@ def get_prepared_dataset(
         output_signature=(
             tf.TensorSpec(shape=input_shape, dtype=tf.float32), 
             tf.TensorSpec(shape=(None, 5), dtype=tf.float32),
-            tf.TensorSpec(shape=(None, 1), dtype=tf.int16),
+            tf.TensorSpec(shape=(None,), dtype=tf.bool),
         )
     )
     
@@ -130,11 +130,11 @@ def get_prepared_dataset(
     ds = ds.shuffle(shuffle_buffer)
     ds = ds.padded_batch(
         batch_size=batch_size,
-        padded_shapes=(input_shape, (n_max_bboxes, 5), (n_max_bboxes, 1)),
+        padded_shapes=(input_shape, (n_max_bboxes, 5), (n_max_bboxes, )),
         padding_values=(
             tf.constant(0.0, dtype=tf.float32),
             tf.constant(-1.0, dtype=tf.float32),
-            tf.constant(0, dtype=tf.int16)
+            tf.constant(False, dtype=tf.bool)
         ),
         drop_remainder=drop_remainder
     )
