@@ -83,11 +83,11 @@ def dist2bbox(distance, anchor_points):
 
 
 
-
-
 def losses(num_classes=1, weight = [5.0, 1.0, 0.5]):
     tal = task_aligned_assigner(num_classes=num_classes)
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, reduction=tf.keras.losses.Reduction.NONE)
+
+    @tf.function
     def compute_loss(images: tf.Tensor, labels: tf.Tensor, gt_masks: tf.Tensor, y_pred):
         """
             Tinh toan loss cho model yolo v8.
@@ -167,29 +167,29 @@ def losses(num_classes=1, weight = [5.0, 1.0, 0.5]):
 
         loss_cls_positive = tf.keras.ops.cond(
             tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
-            lambda: bce(
+            lambda: tf.keras.ops.sum(bce(
                 tf.boolean_mask(class_labels, fg_mask),
-                tf.boolean_mask(all_cls_preds_concat, fg_mask)
+                tf.boolean_mask(all_cls_preds_concat, fg_mask))
             ),
-            lambda: tf.constant(0* class_labels, dtype=tf.float32)
+            lambda: tf.keras.ops.sum(0* class_labels)
         )
 
 
         boxes_loss = tf.keras.ops.cond(
             tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
-            lambda: 1 - compute_ciou(
+            lambda: tf.keras.ops.sum(1 - compute_ciou(
                 tf.boolean_mask(pred_bboxes_xyxy, fg_mask),
-                tf.boolean_mask(bbox_labels, fg_mask)
+                tf.boolean_mask(bbox_labels, fg_mask))
             ),
-            lambda: tf.constant(0.0*pred_bboxes_xyxy, dtype=tf.float32)
+            lambda: tf.keras.ops.sum(0.0*pred_bboxes_xyxy)
         )
 
-        loss_cls_negative = bce(
+        loss_cls_negative = tf.keras.ops.sum(bce(
             tf.boolean_mask(class_labels, ~fg_mask),
             tf.boolean_mask(all_cls_preds_concat, ~fg_mask)
-        )
+        ))
 
-        total_loss = weight[0]*tf.keras.ops.sum(loss_cls_positive) + weight[0]*tf.keras.ops.sum(boxes_loss) + weight[0]*tf.keras.ops.sum(loss_cls_negative)
+        total_loss = weight[0]*loss_cls_positive + weight[0]*boxes_loss + weight[0]*loss_cls_negative
         return total_loss
 
 
