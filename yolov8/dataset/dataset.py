@@ -1,5 +1,8 @@
 import tensorflow as tf
 from yolov8.dataset.data_augmentation import mosaic, mixup
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'   # 0=ALL,1=INFO,2=WARNING,3=ERROR
 
 def read_img(path):
     """
@@ -94,7 +97,7 @@ def get_prepared_dataset(
     batch_size=2,
     n_max_bboxes=10,
     input_shape=(640, 640, 3),
-    shuffle_buffer=100,
+    shuffle_buffer=10,
     drop_remainder=True
 ):
     """
