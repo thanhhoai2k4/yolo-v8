@@ -154,5 +154,3 @@ def create_yolo_v8_model(input_shape: list[int, int, int]=[640,640,3], num_class
 
     model = tf.keras.Model(inputs=inputs, outputs=final_outputs)
     return model
-
-

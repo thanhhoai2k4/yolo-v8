@@ -8,6 +8,7 @@ from yolov8.config import BATCH_SIZE, NUM_CLASSES, EPOCHS, INPUT_SHAPE, LEARNING
 
 
 # Load dữ liệu - chỉ cần 1 dòng!
+# get du lieu training
 data_train = get_prepared_dataset(
     data_dir    ="dataset",
     training    ="train",
@@ -15,6 +16,16 @@ data_train = get_prepared_dataset(
     n_max_bboxes=N_MAX_Bboxes,
     input_shape =tuple(INPUT_SHAPE)
 )
+
+# lay du lieu cho viec validation
+data_val = get_prepared_dataset(
+    data_dir    ="dataset",
+    training    ="val",
+    batch_size  =BATCH_SIZE,
+    n_max_bboxes=N_MAX_Bboxes,
+    input_shape =tuple(INPUT_SHAPE)
+)
+
 
 # khai bao ham loss
 loss_fn = losses(num_classes=NUM_CLASSES)
@@ -24,7 +35,6 @@ model =create_yolo_v8_model(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES)
 
 
 # ---------------------------------------------------------------------------------------
-# huan luyen
 
 @tf.function
 def train_step(images, labels, gt_masks):
@@ -54,9 +64,7 @@ def train(data_train, loss_fn, optimizer, model):
             avg = total_loss / num_batches if num_batches > 0 else 0.0
             pbar.set_postfix({"loss": f"{avg:.6f}"})
 
-
+        model.save("model", save_format="tf")
 # -----------------------------------------------------------------------------------------
-
-
 # Training model
 train(data_train, loss_fn, optimizer, model)

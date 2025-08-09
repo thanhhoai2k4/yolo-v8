@@ -188,6 +188,12 @@ def losses(num_classes=1, weight = [5.0, 1.0, 0.5]):
             tf.boolean_mask(all_cls_preds_concat, ~fg_mask)
         ))
 
+        # dfl loss # tich hop dfl loss vao
+        dfl_loss = bce(
+
+        )
+
+
         total_loss = weight[0]*loss_cls_positive + weight[0]*boxes_loss + weight[0]*loss_cls_negative
         return total_loss
 
@@ -276,6 +282,4 @@ def converbox(boxes,xyxy=True):
         h = y2 - y1
 
         my_result = tf.concat([x,y,w,h], axis=-1)
-    
-
     return my_result
