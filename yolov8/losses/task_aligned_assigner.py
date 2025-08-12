@@ -56,8 +56,8 @@ def compute_ciou(boxes1, boxes2):
 def is_anchor_center_within_box(anchors, gt_bboxes):
     return tf.keras.ops.all(
         tf.keras.ops.logical_and(
-            gt_bboxes[:, :, None, :2] < anchors,
-            gt_bboxes[:, :, None, 2:] > anchors,
+            gt_bboxes[:, :, None, :2] < anchors[:, None, :, :],
+            gt_bboxes[:, :, None, 2:] > anchors[:, None, :, :],
         ),
         axis=-1,
     )

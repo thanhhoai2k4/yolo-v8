@@ -189,9 +189,6 @@ def losses(num_classes=1, weight = [5.0, 1.0, 0.5]):
         ))
 
         # dfl loss # tich hop dfl loss vao
-        dfl_loss = bce(
-
-        )
 
 
         total_loss = weight[0]*loss_cls_positive + weight[0]*boxes_loss + weight[0]*loss_cls_negative

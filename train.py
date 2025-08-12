@@ -17,14 +17,6 @@ data_train = get_prepared_dataset(
     input_shape =tuple(INPUT_SHAPE)
 )
 
-# lay du lieu cho viec validation
-data_val = get_prepared_dataset(
-    data_dir    ="dataset",
-    training    ="val",
-    batch_size  =BATCH_SIZE,
-    n_max_bboxes=N_MAX_Bboxes,
-    input_shape =tuple(INPUT_SHAPE)
-)
 
 
 # khai bao ham loss
@@ -48,7 +40,7 @@ def train_step(images, labels, gt_masks):
     return tf.reduce_mean(loss_value)
 
 
-def train(data_train, loss_fn, optimizer, model):
+def train(data_train, model):
     for epoch in tf.range(EPOCHS):
         print(f"\n--- Bắt đầu Epoch {epoch + 1}/{EPOCHS} ---")
         start_time_epoch = time.time()
@@ -64,7 +56,7 @@ def train(data_train, loss_fn, optimizer, model):
             avg = total_loss / num_batches if num_batches > 0 else 0.0
             pbar.set_postfix({"loss": f"{avg:.6f}"})
 
-        model.save("model", save_format="tf")
+        model.save_weights("my_weights.weights.h5")    # lưu định dạng HDF5
 # -----------------------------------------------------------------------------------------
 # Training model
-train(data_train, loss_fn, optimizer, model)
+train(data_train, model)

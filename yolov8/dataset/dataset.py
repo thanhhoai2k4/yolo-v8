@@ -2,8 +2,6 @@ import tensorflow as tf
 from yolov8.dataset.data_augmentation import mosaic, mixup
 import os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'   # 0=ALL,1=INFO,2=WARNING,3=ERROR
-
 def read_img(path):
     """
         doc 1 anh
@@ -96,7 +94,7 @@ def get_prepared_dataset(
     training="train",
     batch_size=2,
     n_max_bboxes=10,
-    input_shape=(640, 640, 3),
+    input_shape=[640, 640, 3],
     shuffle_buffer=10,
     drop_remainder=True
 ):
@@ -130,6 +128,7 @@ def get_prepared_dataset(
     )
     
     # Áp dụng các transformation
+    ds = ds.repeat(1)
     ds = ds.shuffle(shuffle_buffer)
     ds = ds.padded_batch(
         batch_size=batch_size,
