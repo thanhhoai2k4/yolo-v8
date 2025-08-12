@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as patches
 import tensorflow as tf
+import cv2
 
 
 classid = {0:"dog"}
@@ -69,6 +70,7 @@ def plot_image(images: tf.Tensor, labels: tf.Tensor, gt_masks: tf.Tensor, xywh: 
     for i in range(num_image):
         plt.subplot(2, 2, i + 1)
         img = images[i]
+        cv2.imwrite("image_result/{}.png".format(str(i)), img)
         if img.shape[-1] == 1:
             img = img.squeeze(-1)
             plt.imshow(img,cmap="gray")

@@ -17,6 +17,14 @@ data_train = get_prepared_dataset(
     input_shape =tuple(INPUT_SHAPE)
 )
 
+data_val = get_prepared_dataset(
+    data_dir ="dataset",
+    training ="val",
+    batch_size =BATCH_SIZE,
+    n_max_bboxes=N_MAX_Bboxes,
+    input_shape =tuple(INPUT_SHAPE)
+)
+
 
 
 # khai bao ham loss
