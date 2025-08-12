@@ -4,7 +4,7 @@ from yolov8.model.model_yolo_v8 import create_yolo_v8_model
 from yolov8.losses.losses import losses
 from yolov8.dataset.dataset import get_prepared_dataset
 import tensorflow as tf
-from yolov8.config import BATCH_SIZE, NUM_CLASSES, EPOCHS, INPUT_SHAPE, LEARNING_RATE, N_MAX_Bboxes, Total_Train
+from yolov8.config import BATCH_SIZE, NUM_CLASSES, EPOCHS, INPUT_SHAPE, LEARNING_RATE, N_MAX_Bboxes, Total_Train, Total_Val
 
 
 # Load dữ liệu - chỉ cần 1 dòng!
@@ -47,6 +47,12 @@ def train_step(images, labels, gt_masks):
     # đảm bảo trả scalar float32
     return tf.reduce_mean(loss_value)
 
+# for data_val
+@tf.function
+def val_step(images, labels, gt_masks):
+    predictions = model(images, training=False) # training=False
+    loss_value = loss_fn(images, labels, gt_masks, predictions)
+    return tf.reduce_mean(loss_value)
 
 def train(data_train, model):
     for epoch in tf.range(EPOCHS):
