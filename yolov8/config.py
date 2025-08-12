@@ -9,5 +9,10 @@ N_MAX_Bboxes = 10
 
 
 
-images_path = getlistfile("dataset", "train")
-Total_Train = len(images_path)
+images_path_train = getlistfile("dataset", "train")
+Total_Train = len(images_path_train)
+
+
+image_path_val = getlistfile("dataset", "val")
+Total_Val = len(image_path_val)
+
