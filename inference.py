@@ -51,7 +51,7 @@ def load_image(path: str, target_size : [int, int] = [640, 640]):
     return tf.keras.ops.expand_dims(img, 0), [ratio_height, ratio_width]
 
 
-def inference(path_model: str="my_weights.weights.h5", path_image: str="dataset/images/test/n02085620_368 - Copy.jpg", target_size : [int, int] = [640, 640], iou_threshold: int = 0.5, confidence_threshold: int = 0.5):
+def inference(path_model: str="my_weights.weights.h5", path_image: str="dataset/images/test/n02085620_368 - Copy.jpg", target_size : [int, int] = [640, 640], iou_threshold: int = 0.2, confidence_threshold: int = 0.2):
     """
         show Corresponding boxes with an images
 
@@ -120,7 +120,7 @@ def inference(path_model: str="my_weights.weights.h5", path_image: str="dataset/
 
 
 model_path = "my_weights.weights.h5"
-image_path = "dataset/images/test/n02085620_368 - Copy.jpg"
+image_path = "image_result/0.png"
 target_size = [640, 640] # height, width
 
 if __name__ == "__main__":
