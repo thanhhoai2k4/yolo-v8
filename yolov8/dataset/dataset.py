@@ -76,30 +76,33 @@ def dataset(path, training : str="train" ):
     image_list = []
     labels_list = []
     for i in tf.range(len(images_dataset)):
-        image = read_img(images_dataset[i])
-        label = read_label(texts_dataset[i])
-        
-        # Tạo mask với shape đúng (N, 1)
-        num_boxes = tf.shape(label)[0]
-        mask = tf.ones((num_boxes, 1), dtype=tf.int16)
+        try:
+            image = read_img(images_dataset[i])
+            label = read_label(texts_dataset[i])
 
-        if len(image_list) != 4 and len(labels_list) != 4:
-            image_list.append(image)
-            labels_list.append(label)
-        else:
-            # Thực hiện mosaic và mixup
-            images, labels = mosaic(image_list, labels_list, output_size=(640,640))
-            mixed_image, combined_labels = mixup(images, labels, image, label, 3.0)
-            
-            # Tạo mask cho combined_labels
-            combined_num_boxes = tf.shape(combined_labels)[0]
-            combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
-            combined_mask = tf.cast(combined_mask, dtype=tf.bool)
-            combined_mask = tf.reshape(combined_mask, [combined_num_boxes,])
+            # Tạo mask với shape đúng (N, 1)
+            num_boxes = tf.shape(label)[0]
+            mask = tf.ones((num_boxes, 1), dtype=tf.int16)
 
-            yield mixed_image, combined_labels, combined_mask
-            image_list = []
-            labels_list = []
+            if len(image_list) != 4 and len(labels_list) != 4:
+                image_list.append(image)
+                labels_list.append(label)
+            else:
+                # Thực hiện mosaic và mixup
+                images, labels = mosaic(image_list, labels_list, output_size=(640,640))
+                mixed_image, combined_labels = mixup(images, labels, image, label, 3.0)
+
+                # Tạo mask cho combined_labels
+                combined_num_boxes = tf.shape(combined_labels)[0]
+                combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
+                combined_mask = tf.cast(combined_mask, dtype=tf.bool)
+                combined_mask = tf.reshape(combined_mask, [combined_num_boxes,])
+
+                yield mixed_image, combined_labels, combined_mask
+                image_list = []
+                labels_list = []
+        except Exception as e:
+            print(e)
 
 def get_prepared_dataset(
     data_dir="dataset",
