@@ -64,16 +64,12 @@ def dataset(path, training : str="train" ):
     images_dataset = images_dataset[:Quotient * 5]
     texts_dataset = texts_dataset[:Quotient * 5]
 
-    print("image " + training + " : " +str(len(images_dataset)))
-    print("text: " + training + " : " + str(len(texts_dataset)))
 
     if len(images_dataset) != len(texts_dataset):
         raise ValueError("so luong anh({}) va nhan({}) tuong ung ko khop".format(str(len(images_dataset)), str(len(texts_dataset))))
 
-    elif len(images_dataset) < 5:
+    if len(images_dataset) < 5:
         raise ValueError("So luong anh nho hon 5 cu the la: " + str(len(images_dataset)))
-    else:
-        print("Chuan bi load du lieu : " + training)
 
 
 

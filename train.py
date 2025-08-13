@@ -6,6 +6,11 @@ from yolov8.dataset.dataset import get_prepared_dataset
 import tensorflow as tf
 from yolov8.config import BATCH_SIZE, NUM_CLASSES, EPOCHS, INPUT_SHAPE, LEARNING_RATE, N_MAX_Bboxes, Total_Train, Total_Val
 
+from rich.console import Console
+from rich.live import Live
+from rich.table import Table
+from rich.progress import Progress
+
 
 # Load dữ liệu - chỉ cần 1 dòng!
 # get du lieu training
@@ -55,22 +60,54 @@ def val_step(images, labels, gt_masks):
     return tf.reduce_mean(loss_value)
 
 def train(data_train, model):
-    for epoch in tf.range(EPOCHS):
-        print(f"\n--- Bắt đầu Epoch {epoch + 1}/{EPOCHS} ---")
-        start_time_epoch = time.time()
-        total_loss, num_batches = 0, 0
 
-        pbar = tqdm(enumerate(data_train), total=Total_Train // BATCH_SIZE, desc=f"Epoch {epoch + 1}/{EPOCHS}")
-        for step, (images, labels, gt_masks) in pbar:
+    best_val_loss = float('inf')
+    # Khởi tạo một đối tượng Console
+    console = Console()
 
-            loss_value = train_step(images, labels, gt_masks)
-            total_loss += float(loss_value.numpy())
-            num_batches += 1
+    # Tạo một bảng
+    table = Table(title="Quá Trình Huấn Luyện Mô Hình")
+    table.add_column("Epoch", justify="center", style="cyan", no_wrap=True)
+    table.add_column("Loss", justify="center", style="magenta")
+    table.add_column("Validation Loss", justify="center", style="green")
 
-            avg = total_loss / num_batches if num_batches > 0 else 0.0
-            pbar.set_postfix({"loss": f"{avg:.6f}"})
+    with Live(table, refresh_per_second=1) as live:
+        for epoch in tf.range(EPOCHS):
+            print(f"\n--- Bắt đầu Epoch {epoch + 1}/{EPOCHS} ---")
+            start_time_epoch = time.time()
 
-        model.save_weights("my_weights.weights.h5")    # lưu định dạng HDF5
+
+            # train
+            total_loss, num_batches = 0, 0
+            for images, labels, gt_masks in data_train:
+                loss_value = train_step(images, labels, gt_masks)
+                total_loss += float(loss_value.numpy())
+                num_batches += 1
+                avg_train = total_loss / num_batches if num_batches > 0 else 0.0
+
+            # val
+            total_val_loss, num_val_batches = 0, 0
+            for images, labels, gt_masks in data_val:
+                val_loss_value = val_step(images, labels, gt_masks)
+                total_val_loss += float(val_loss_value.numpy())
+                num_val_batches += 1
+                avg_val = total_val_loss / num_val_batches if num_val_batches > 0 else 0.0
+
+            # save model
+            if best_val_loss > avg_val:
+                model.save_weights("my_weights.weights.h5")    # lưu định dạng weight HDF5
+                # update value loss
+                best_val_loss = avg_val
+
+
+            # update into comsole
+            table.add_row(
+                f"{epoch + 1}",
+                f"{avg_train:.4f}",
+                f"{avg_val:.4f}",
+            )
+
+
 # -----------------------------------------------------------------------------------------
 # Training model
 train(data_train, model)
