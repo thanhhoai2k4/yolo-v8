@@ -30,9 +30,11 @@ def read_label(path):
 
     if not tf.io.gfile.exists(path): # kiem tra duong dan
         raise FileNotFoundError(f"Error file not exist: {path}")
+
     labels = tf.io.read_file(path)
-    labels = tf.strings.strip(tf.strings.split(labels, sep='\n'))
-    labels = tf.strings.split(labels, sep=' ')
+    labels = tf.strings.split(labels, sep='\n')
+    non_empty_lines = tf.boolean_mask(labels, tf.strings.length(labels) > 0)
+    labels = tf.strings.split(non_empty_lines, sep=' ')
     labels = tf.strings.to_number(labels, out_type=tf.float32)
     final_labels = labels.to_tensor()
 
@@ -64,6 +66,8 @@ def dataset(path, training : str="train" ):
     images_dataset = images_dataset[:Quotient * 5]
     texts_dataset = texts_dataset[:Quotient * 5]
 
+    print("len images: " + str(len(images_dataset)) +  "    len datatext: "  + str(len(texts_dataset)) )
+
 
     if len(images_dataset) != len(texts_dataset):
         raise ValueError("so luong anh({}) va nhan({}) tuong ung ko khop".format(str(len(images_dataset)), str(len(texts_dataset))))
@@ -79,30 +83,31 @@ def dataset(path, training : str="train" ):
         try:
             image = read_img(images_dataset[i])
             label = read_label(texts_dataset[i])
+        except:
+            print("co van de o file" + texts_dataset[i])
+            continue
 
-            # Tạo mask với shape đúng (N, 1)
-            num_boxes = tf.shape(label)[0]
-            mask = tf.ones((num_boxes, 1), dtype=tf.int16)
+        # Tạo mask với shape đúng (N, 1)
+        num_boxes = tf.shape(label)[0]
+        mask = tf.ones((num_boxes, 1), dtype=tf.int16)
 
-            if len(image_list) != 4 and len(labels_list) != 4:
-                image_list.append(image)
-                labels_list.append(label)
-            else:
-                # Thực hiện mosaic và mixup
-                images, labels = mosaic(image_list, labels_list, output_size=(640,640))
-                mixed_image, combined_labels = mixup(images, labels, image, label, 3.0)
+        if len(image_list) != 4 and len(labels_list) != 4:
+            image_list.append(image)
+            labels_list.append(label)
+        else:
+            # Thực hiện mosaic và mixup
+            images, labels = mosaic(image_list, labels_list, output_size=(640,640))
+            mixed_image, combined_labels = mixup(images, labels, image, label, 3.0)
 
-                # Tạo mask cho combined_labels
-                combined_num_boxes = tf.shape(combined_labels)[0]
-                combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
-                combined_mask = tf.cast(combined_mask, dtype=tf.bool)
-                combined_mask = tf.reshape(combined_mask, [combined_num_boxes,])
+            # Tạo mask cho combined_labels
+            combined_num_boxes = tf.shape(combined_labels)[0]
+            combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
+            combined_mask = tf.cast(combined_mask, dtype=tf.bool)
+            combined_mask = tf.reshape(combined_mask, [combined_num_boxes,])
 
-                yield mixed_image, combined_labels, combined_mask
-                image_list = []
-                labels_list = []
-        except Exception as e:
-            print(e)
+            yield mixed_image, combined_labels, combined_mask
+            image_list = []
+            labels_list = []
 
 def get_prepared_dataset(
     data_dir="dataset",
