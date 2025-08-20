@@ -16,3 +16,8 @@ Total_Train = len(images_path_train) //5
 image_path_val = getlistfile("dataset", "val")
 Total_Val = len(image_path_val) // 5
 
+# nhung bien lien quan den model
+D = 0.25
+W = 0.25
+R = 0.25
+
