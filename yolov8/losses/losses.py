@@ -82,7 +82,7 @@ def dist2bbox(distance, anchor_points):
 
 
 
-def losses(num_classes=1, weight = [5.0, 1.0, 0.5, 1.0]):
+def losses(num_classes=1, weight = [5.0, 5.0, 0.5, 1.0]):
     tal = task_aligned_assigner(num_classes=num_classes)
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, reduction=tf.keras.losses.Reduction.NONE)
 
