@@ -166,7 +166,7 @@ def losses(num_classes=1, weight = [5.0, 1.0, 0.5, 1.0]):
 
         loss_cls_positive = tf.keras.ops.cond(
             tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
-            lambda: tf.keras.ops.sum(bce(
+            lambda: tf.keras.ops.mean(bce(
                 tf.boolean_mask(class_labels, fg_mask),
                 tf.boolean_mask(all_cls_preds_concat, fg_mask))
             ),
@@ -176,7 +176,7 @@ def losses(num_classes=1, weight = [5.0, 1.0, 0.5, 1.0]):
 
         boxes_loss = tf.keras.ops.cond(
             tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
-            lambda: tf.keras.ops.sum(1 - compute_ciou(
+            lambda: tf.keras.ops.mean(1 - compute_ciou(
                 tf.boolean_mask(pred_bboxes_xyxy, fg_mask),
                 tf.boolean_mask(bbox_labels, fg_mask))
             ),
@@ -195,7 +195,7 @@ def losses(num_classes=1, weight = [5.0, 1.0, 0.5, 1.0]):
 
 
         total_loss = weight[1]*loss_cls_positive + weight[0]*boxes_loss + weight[2]*loss_cls_negative + weight[3]*loss_dfl
-        return total_loss
+        return total_loss / tf.cast(tf.shape(images)[0], tf.float32)
 
 
 
