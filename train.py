@@ -4,7 +4,7 @@ from yolov8.losses.losses import losses
 from yolov8.dataset.dataset import get_prepared_dataset
 import tensorflow as tf
 from yolov8.config import BATCH_SIZE, NUM_CLASSES, EPOCHS, INPUT_SHAPE, LEARNING_RATE, N_MAX_Bboxes, Total_Train, Total_Val
-
+import os
 
 # Load dữ liệu - chỉ cần 1 dòng!
 # get du lieu training
@@ -27,10 +27,13 @@ data_val = get_prepared_dataset(
 # khai bao ham loss
 loss_fn = losses(num_classes=NUM_CLASSES)
 optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE) # cap nhat trong so
-model =create_yolo_v8_model(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES, depth_multiple=0.25, width_multiple=0.25)
 
+model = create_yolo_v8_model(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES, depth_multiple=0.25, width_multiple=0.25)
+if os.path.exists("my_weights.weights.h5"):
+    model.load_weights("my_weights.weights.h5")
 # ---------------------------------------------------------------------------------------
 
+# data training
 @tf.function
 def train_step(images, labels, gt_masks):
     """

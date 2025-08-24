@@ -1,7 +1,7 @@
 import tensorflow as tf
 from yolov8.losses.task_aligned_assigner import task_aligned_assigner
 import math
-
+from yolov8.utils.plot import plot_image
 
 BOX_REGRESSION_CHANNELS = 64
 
@@ -9,8 +9,10 @@ def decode_regression_to_boxes(preds):
     """
         giai ma ket qua cua model cho box
 
-        tra ve
+        Returns:
+            -
     """
+
     preds_bbox = tf.keras.layers.Reshape((-1,4,BOX_REGRESSION_CHANNELS // 4)) (
         preds
     ) # batch, num_cell, num_cell, 4, 16
@@ -131,9 +133,10 @@ def losses(num_classes=1, weight = [5.0, 5.0, 0.5, 1.0]):
         # giai ma boxes su that
         boxes_True = labels[..., 1:] * 640
         boxes_True = converbox(boxes_True, True) # chuyen doi xywh sang xyxy
-        class_id_true = labels[..., 0] 
+        class_id_true = labels[..., 0]
 
-
+        # show du lieu that su mau xem du lieu mau co sai sot ko =) du lieu that su dung ko co sai sot
+        # plot_image(images, labels, gt_masks)
 
         # mỗi dòng là 4 phần tử đại diện cho khoảng cách tình từ tâm tương ứng đến 4 tọa độ (top - left) và (right - bottom)
         #                   ****************-----------------
@@ -143,9 +146,12 @@ def losses(num_classes=1, weight = [5.0, 5.0, 0.5, 1.0]):
         #                   ---------------******************
         # khoang cach tu tâm tương ứng đến 4 tọa độ (top - left) và (right - bottom)
         decoded_boxes = decode_regression_to_boxes(all_box_preds_concat) # day la box xyxy da duoc ma hoa shape (B, num_acnhors, 4)
-        
+
         # all_anchors: shape(8400,2)  all_strides : shape(8400,)
         all_anchors, all_strides = get_anchors(image_shape=images.shape[1:3])
+
+        # chueyn doi toa do bin sang tuyet doi
+        decoded_boxes = decoded_boxes * all_strides[None,:,None]
 
         # chuyển anchors từ tọa độ tương đối sang tọa độ tuyệt đối.
         anchor_point = all_anchors * all_strides[:,None] # shape: (8400,2) notes: 8400 còn được gọi là n_anchors.
@@ -157,16 +163,16 @@ def losses(num_classes=1, weight = [5.0, 5.0, 0.5, 1.0]):
                                                                    anchors = tf.keras.ops.tile(
                                                                        tf.keras.ops.expand_dims(anchor_point, axis=0),
                                                                        [labels.shape[0], 1, 1]),
-                                                                   gt_labels = class_id_true,
-                                                                   gt_bboxes = boxes_True,
-                                                                   gt_mask = gt_masks
+                                                                   gt_labels = class_id_true, #
+                                                                   gt_bboxes = boxes_True, #  xyxy
+                                                                   gt_mask = gt_masks #
                                                                    )
 
         fg_mask = (gt_box_matches_per_anchor > 0)
 
         loss_cls_positive = tf.keras.ops.cond(
             tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
-            lambda: tf.keras.ops.mean(bce(
+            lambda: tf.keras.ops.sum(bce(
                 tf.boolean_mask(class_labels, fg_mask),
                 tf.boolean_mask(all_cls_preds_concat, fg_mask))
             ),
@@ -176,7 +182,7 @@ def losses(num_classes=1, weight = [5.0, 5.0, 0.5, 1.0]):
 
         boxes_loss = tf.keras.ops.cond(
             tf.reduce_sum(tf.cast(fg_mask, tf.float32)) > 0,
-            lambda: tf.keras.ops.mean(1 - compute_ciou(
+            lambda: tf.keras.ops.sum(1 - compute_ciou(
                 tf.boolean_mask(pred_bboxes_xyxy, fg_mask),
                 tf.boolean_mask(bbox_labels, fg_mask))
             ),
@@ -192,9 +198,13 @@ def losses(num_classes=1, weight = [5.0, 5.0, 0.5, 1.0]):
         loss_dfl = 0.0
 
 
-
-
         total_loss = weight[1]*loss_cls_positive + weight[0]*boxes_loss + weight[2]*loss_cls_negative + weight[3]*loss_dfl
+
+        tf.print("loss_cls_positive: ", weight[1]*loss_cls_positive)
+        tf.print("boxes_loss: ", weight[0]*boxes_loss)
+        tf.print("loss_cls_negative: ", weight[2]*loss_cls_negative)
+
+
         return total_loss / tf.cast(tf.shape(images)[0], tf.float32)
 
 
@@ -283,3 +293,70 @@ def converbox(boxes,xyxy=True):
 
         my_result = tf.concat([x,y,w,h], axis=-1)
     return my_result
+
+
+def find_anchors_when_x_y_center(x_center, y_center, width, num_cell):
+    """
+        tinh anchors tuong ung khi biet x_center va y_center.
+    Args:
+        x_center: gia tri trung tam cua x.
+        y_center: gia tri trung tam cua y.
+        width: chieu cao cua anh.
+        num_cell: so luong cell tuong ung o feature map.
+
+    Returns:
+        x_center_anchors: gia tri trung tam cua cell ma box nam trong.
+        y_center_anchors: gia tri trung tam cua cell ma box nam trong.
+
+    """
+    stride = width // num_cell # calculate stride
+
+    x_index = int(stride // stride)
+    y_index = int(stride // stride)
+
+    x_center_anchor = x_index * stride + stride // 2
+    y_center_anchor = y_index * stride + stride // 2
+
+    return x_center_anchor, y_center_anchor
+
+
+def  createdf(box_xyxy, anchor_point):
+    """
+        
+    Args:
+        box_xyxy: 
+        anchors_point: 
+
+    Returns:
+
+    """
+
+    x1, y1, x2, y2 = box_xyxy
+    x_a, y_a = anchor_point
+
+    l = x_a - x1
+    t = y_a - y1
+    r = x2 - x_a
+    b = y2 - y_a
+
+    distances = [l, t, r, b]
+
+    targets = []
+
+    for i in tf.range(4):
+
+        d = distances[i]
+        d = tf.clip_by_value(d, 0, BOX_REGRESSION_CHANNELS - 1 - 1e-6)
+        left_bin = tf.math.floor(d) # left
+        right_bin = tf.math.ceil(d) # right
+
+        weight_left = right_bin-d
+        weight_right = 1 - weight_left
+
+        dist_vec = tf.zeros(shape=(BOX_REGRESSION_CHANNELS//4,), dtype=tf.float32)
+        dist_vec = tf.tensor_scatter_nd_update(dist_vec, left_bin, weight_left)
+        dist_vec = tf.tensor_scatter_nd_update(dist_vec, right_bin, weight_right)
+
+        targets.append(dist_vec)
+
+    return tf.concat(targets, axis=0)

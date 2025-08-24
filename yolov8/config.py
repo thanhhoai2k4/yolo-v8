@@ -2,9 +2,9 @@ from yolov8.dataset.dataset import getlistfile
 
 BATCH_SIZE = 1
 NUM_CLASSES = 1
-EPOCHS = 100
+EPOCHS = 10
 INPUT_SHAPE = [640,640,3]
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 N_MAX_Bboxes = 10
 
 

@@ -13,7 +13,10 @@ def load_model(path: str = "my_weights.weights.h5"):
             model: keras model
     """
     # load model
-    model =create_yolo_v8_model(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES)
+    model =create_yolo_v8_model(input_shape=INPUT_SHAPE,
+                                num_classes=NUM_CLASSES,
+                                width_multiple=0.25,
+                                depth_multiple=0.25)
     model.load_weights(path)
     print("✅ load weights successfully!")
     return model
@@ -120,7 +123,7 @@ def inference(path_model: str="my_weights.weights.h5", path_image: str="dataset/
 
 
 model_path = "my_weights.weights.h5"
-image_path = "image_result/0.png"
+image_path = "dataset/images/test/n02085620_368 - Copy.jpg"
 target_size = [640, 640] # height, width
 
 if __name__ == "__main__":

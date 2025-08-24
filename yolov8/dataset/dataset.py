@@ -1,6 +1,7 @@
 import tensorflow as tf
 from yolov8.dataset.data_augmentation import mosaic, mixup
 import os
+import numpy as np
 
 def read_img(path):
     """
@@ -163,4 +164,79 @@ def get_prepared_dataset(
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
     
     return ds
-    
+
+
+def dataset_catch(path, training : str="train" ):
+    """
+        Generator function để yield dữ liệu (image, label, mask)
+        """
+    images_dataset, texts_dataset = getlistfile(path, training)
+    Quotient = len(images_dataset) // 5  # lay phan guyen
+    images_dataset = images_dataset[:Quotient * 5]
+    texts_dataset = texts_dataset[:Quotient * 5]
+
+    print("len images: " + str(len(images_dataset)) + "    len datatext: " + str(len(texts_dataset)))
+
+    if len(images_dataset) != len(texts_dataset):
+        raise ValueError(
+            "so luong anh({}) va nhan({}) tuong ung ko khop".format(str(len(images_dataset)), str(len(texts_dataset))))
+
+    if len(images_dataset) < 5:
+        raise ValueError("So luong anh nho hon 5 cu the la: " + str(len(images_dataset)))
+
+    images_list = list() # ds chua ket da tra ve
+    labels_list = list()
+    gt_masks_list = list()
+
+
+
+
+
+    for i in range(0, len(texts_dataset), 5):
+
+        # read images
+        image1 = read_img(images_dataset[i])
+        image2 = read_img(images_dataset[i+1])
+        image3 = read_img(images_dataset[i+2])
+        image4 = read_img(images_dataset[i+3])
+        image5 = read_img(images_dataset[i+4])
+
+        # read label
+        label1 = read_label(texts_dataset[i])
+        label2 = read_label(texts_dataset[i+1])
+        label3 = read_label(texts_dataset[i+2])
+        label4 = read_label(texts_dataset[i+3])
+        label5 = read_label(texts_dataset[i+4])
+
+
+        # mosaic argumention
+        image, label = mosaic(
+            [image1, image2, image3, image4, image5],
+            [label1, label2, label3, label4], output_size=(640, 640)) # shape: (640, 640, 3) , (num_gt_box, 5)
+
+        # mixup
+        image, label = mixup(image, label, image5, label5, 3.0)
+
+        # gt_mask
+        combined_num_boxes = tf.shape(label)[0]
+        combined_mask = tf.ones((combined_num_boxes, 1), dtype=tf.int16)
+        combined_mask = tf.cast(combined_mask, dtype=tf.bool)
+
+        images_list.append(image)
+        labels_list.append(label)
+        gt_masks_list.append(combined_mask)
+
+    images_list = np.array(images_list) #  batch, 640, 640, 3
+    labels_list = np.array(labels_list) # batch, num_gt, 5
+    gt_masks_list = np.array(gt_masks_list) # batch, num_gt, 1
+
+    # padding
+    images_list_padding = images_list
+    labels_list_padding = np.pad(
+        labels_list,
+        pad_width=10,
+        mode="constant",
+        constant_values=-1
+    )
+
+    return None
